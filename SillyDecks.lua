@@ -22,12 +22,13 @@ SMODS.current_mod.optional_features = {
     quantum_enhancements = true
 }
 
-local atlas_hc = SMODS.Atlas {
+local atlas_decks = SMODS.Atlas {
 	key = "deckicons",
 	path = "Decks/deck.png",
 	px = 71,
 	py = 95,
 }
+
 
 SMODS.Atlas {
     key = "modicon",
@@ -35,8 +36,6 @@ SMODS.Atlas {
     px = 28,
     py = 28
 }
-
-
 
 SMODS.Atlas({key = 'sdecks_cards', path = 'Suits/8BitDeck.png', px = 71, py = 95})
 SMODS.Atlas({key = 'sdecks_cards_hc', path = 'Suits/8BitDeck_opt2.png', px = 71, py = 95})
@@ -104,10 +103,10 @@ function Card:change_suit(new_suit)
     local change = self.base.suit ~= new_suit
     card_change_suit(self, new_suit)
     if not change then return end
-    if G.GAME.selected_back.effect.center.key == 'b_sdecks_confused' and contains({"Hearts", "Clubs", "Spades", "Diamonds"},new_suit) then 
+    if G.GAME.sdecks_ban_regular_suits and contains({"Hearts", "Clubs", "Spades", "Diamonds"},new_suit) then 
         card_change_suit(self, 'sdecks_'..new_suit..'?')
     end
-    if G.GAME.selected_back.effect.center.key == 'b_sdecks_vanta' then
+    if G.GAME.sdecks_make_spades_negative then
         if not self.edition and self:is_suit("Spades") then self:set_edition("e_negative",true,true) end
         if self.edition and self.edition.key == "e_negative" and not self:is_suit("Spades") then self:set_edition(nil,true,true) end 
     end
@@ -120,10 +119,10 @@ function Card:set_base(card, initial)
     card_set_base(self, card, initial)
     if not change then return end
     if not G.GAME.selected_back then return end 
-    if G.GAME.selected_back.effect.center.key == 'b_sdecks_confused' and contains({"Hearts", "Clubs", "Spades", "Diamonds"},card.suit) then 
+    if G.GAME.sdecks_ban_regular_suits and contains({"Hearts", "Clubs", "Spades", "Diamonds"},card.suit) then 
         card_change_suit(self, 'sdecks_'..card.suit..'?')
     end
-    if G.GAME.selected_back.effect.center.key == 'b_sdecks_vanta' then
+    if G.GAME.sdecks_make_spades_negative then
         if not self.edition and self:is_suit("Spades") then self:set_edition("e_negative",true,true) end
         if self.edition and self.edition.key == "e_negative" and not self:is_suit("Spades") then self:set_edition(nil,true,true) end 
     end
@@ -132,7 +131,7 @@ end
 local card_set_ability = Card.set_ability
 function Card:set_ability(center, initial, delay_sprites)
     card_set_ability(self,center,initial,delay_sprites)
-    if (center ~= nil) and self.base and G.GAME.selected_back and G.GAME.selected_back.effect.center.key == 'b_sdecks_vanta' then
+    if (center ~= nil) and self.base and G.GAME.selected_back and G.GAME.sdecks_make_spades_negative then
         if not self.edition and self:is_suit("Spades") then
             self:set_edition("e_negative",true,true) end
         if self.edition and self.edition.key == "e_negative" and not self:is_suit("Spades") then
@@ -181,6 +180,9 @@ SMODS.Back{
         },
     },
     apply = function(self)
+
+        G.GAME.sdecks_make_spades_negative = true
+
         G.E_MANAGER:add_event(Event({
             func = function()
                 for i = #G.playing_cards, 1, -1 do
@@ -262,6 +264,7 @@ SMODS.Back{
         },
     },
     apply = function()
+        G.GAME.sdecks_ban_regular_suits = true
         G.E_MANAGER:add_event(Event({
             func = function()
                 for i = #G.playing_cards, 1, -1 do
@@ -573,6 +576,8 @@ SMODS.Back{
             end
         end
         if context.end_of_round then
+            local hand_UI = G.HUD:get_UIE_by_ID('hand_UI_count')
+            local discard_UI = G.HUD:get_UIE_by_ID('discard_UI_count')
             G.E_MANAGER:add_event(Event({
                 func = function()
                     hand_UI.config.object.colours = {G.C.BLUE}
@@ -610,7 +615,7 @@ SMODS.Back{
 --- REWIND DECK
 SMODS.Back{
     name = "Rewind Deck",
-    key = "Rewind",
+    key = "rewind",
     atlas = 'deckicons', 
     pos = {x = 3, y = 1},
 
@@ -656,7 +661,7 @@ end
 --- ROCKY ROAD DECK
 SMODS.Back{
     name = "Rocky Road Deck",
-    key = "modded",
+    key = "rockyroad",
     atlas = 'deckicons', 
     pos = {x = 4, y = 1},
 
@@ -778,6 +783,41 @@ SMODS.Back{
     end
 
 }
+
+
+local atlas_sleeves = SMODS.Atlas {
+	key = "decksleeves",
+	path = "Decks/decksleeves.png",
+	px = 73,
+	py = 95,
+}
+
+
+if next(SMODS.find_mod("CardSleeves")) then
+
+    deck_list = {'empty', 'vanta', 'single', 'confused', 'standard', 'ankh', 'discovered', 'herculean', 'fallacy', 'casino', 'ionized', 'wasteful', 'rewind', 'rockyroad'}
+
+    for k, v in ipairs(deck_list) do
+
+        deck_to_copy = v
+        deck_id = "b_sdecks_" .. deck_to_copy
+
+        CardSleeves.Sleeve {
+            key = deck_to_copy,
+            atlas = "decksleeves",
+            pos = { x = (k-1)%5, y = math.floor((k-1)/5) },
+            config = SMODS.Back.obj_table[deck_id].config,
+            loc_txt = {
+                name = string.gsub(SMODS.Back.obj_table[deck_id].loc_txt.name,"Deck","Sleeve"),
+                text = SMODS.Back.obj_table[deck_id].loc_txt.text
+            },
+
+            calculate = SMODS.Back.obj_table[deck_id].calculate,
+            apply = SMODS.Back.obj_table[deck_id].apply,
+        }
+    end
+
+end
 
 ----------------------------------------------
 ------------MOD CODE END---------------------
