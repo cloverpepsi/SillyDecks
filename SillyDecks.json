@@ -1,0 +1,16 @@
+{
+	"id": "sillydecks",
+	"name": "Silly Decks",
+	"display_name": "Silly Decks",
+	"author": ["cassiepepsi"],
+	"description": "Adds several decks that may or may not be balanced. Hopefully they're, at the very least, fun.",
+	"prefix": "sdecks",
+	"main_file": "SillyDecks.lua",
+	"priority": 0,
+	"badge_colour": "FE5F55",
+	"badge_text_colour": "FFFFFF",
+	"version": "3.0.0",
+	"dependencies": [
+		"Steamodded (>=1.*)"
+	]
+}
