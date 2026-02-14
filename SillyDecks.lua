@@ -229,7 +229,6 @@ SMODS.Back{
     key = "single",
     atlas = 'deckicons', 
     pos = {x = 3, y = 0},
-    config = {joker_slot = -4},
     loc_txt = {
         name ="Singularity Deck",
         text={
@@ -241,6 +240,7 @@ SMODS.Back{
     apply = function(self)
         G.E_MANAGER:add_event(Event({
             func = function()
+                G.jokers:change_size(-4)
                 SMODS.change_free_rerolls(10)                
                 return true
             end
