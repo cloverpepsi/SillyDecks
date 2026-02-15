@@ -152,17 +152,31 @@ SMODS.Back{
             "empty Deck",
         },
     },
+
+    config = {extra = {is_first = true}},
+
     apply = function(self)
         G.E_MANAGER:add_event(Event({
             func = function()
-                while #G.playing_cards ~= 0 do
+
+                while #G.playing_cards > 1 do
                     G.playing_cards[1]:remove()
                 end
-                SMODS.add_card{key='j_marble', edition='e_holo'}
-                G.GAME.starting_deck_size = #G.playing_cards
+
+                G.playing_cards[1]:set_ability(G.P_CENTERS["m_stone"])
+                SMODS.add_card{key='j_marble', edition='e_holo', set="Joker"}
+
                 return true
             end
         }))
+        G.GAME.starting_deck_size = 0
+    end,
+
+    calculate = function(self, card, context)
+        if context.hand_drawn and self.config.extra.is_first then
+            self.config.extra.is_first = false
+            SMODS.destroy_cards({G.playing_cards[1]})
+        end
     end
 }
 
@@ -311,10 +325,12 @@ SMODS.Back{
         G.E_MANAGER:add_event(Event({
             func = function()
                 for _, card in ipairs(G.playing_cards) do
-                    card:set_edition(SMODS.poll_edition('sdecks_std_edition',nil,true,true),true,true)
-                    local enhancement = SMODS.poll_enhancement('sdecks_std_enhance')
+                    local edition = SMODS.poll_edition('sdecks_stnd_edition',nil,true,true)
+                    if edition ~= nil then card:set_edition(edition,true,true) end
+                    local enhancement = SMODS.poll_enhancement('sdecks_stnd_enhance')
                     if enhancement ~= nil then card:set_ability(enhancement,true,true) end
-                    card:set_seal(SMODS.poll_seal('sdecks_std_seal'),true,true)
+                    local seal = SMODS.poll_seal('sdecks_stnd_seal')
+                    if seal ~= nil then card:set_seal(seal,true,true) end
                 end
                 return true
             end
@@ -485,16 +501,15 @@ SMODS.Back{
 
     calculate = function(self, card, context)
         if context.round_eval and G.GAME.last_blind and G.GAME.last_blind.boss then
-        G.E_MANAGER:add_event(Event({
-            func = function()
-                while #G.playing_cards ~= 0 do
-                    G.playing_cards[1]:remove()
-                end
-                for _, suit in pairs({'S', 'H', 'C', 'D'}) do
-                    for __, rank in pairs({'2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'}) do
-                        SMODS.add_card({set = 'Base', suit=suit, rank=rank, area=G.deck, skip_materialize=true})
-                    end
-                end
+
+            while #G.playing_cards ~= 0 do
+                G.playing_cards[1]:remove()
+            end
+            for _, playing_card in ipairs(G.GAME.sdecks_casino_deck) do
+                playing_card.area = G.deck
+                playing_card.skip_materialize = true
+                SMODS.add_card({set = 'Base', rank = playing_card.rank, suit = playing_card.suit, seal = playing_card.seal, enhancement = playing_card.enhancement, edition = playing_card.edition, area = G.deck})
+            end
                 
             G.E_MANAGER:add_event(Event({trigger = 'after', delay = 0.4, func = function()
                 attention_text({
@@ -505,14 +520,23 @@ SMODS.Back{
                     })
 
                     play_sound('tarot2', 1, 0.4)
-                return true end }))
+                return true end
+            }))
 
-                return true
-            end
-        }))
         end
     end
 }
+
+
+local function get_sdecks_casino()
+    G.E_MANAGER:add_event(Event({ trigger = 'after', func = function ()
+        G.GAME.sdecks_casino_deck = {}
+        for _, playing_card in ipairs(G.deck.cards) do 
+            table.insert(G.GAME.sdecks_casino_deck, {rank = playing_card.base.value, suit = playing_card.base.suit, seal = playing_card.seal, enhancement = playing_card.config.center.key, edition = playing_card.edition and playing_card.edition.key})
+        end
+    return true end }))
+end
+
 
 --- IONIZED DECK
 SMODS.Back{
@@ -783,6 +807,12 @@ SMODS.Back{
     end
 
 }
+
+function SMODS.current_mod.reset_game_globals(run_start)
+    if run_start then
+        get_sdecks_casino()
+    end
+end
 
 
 local atlas_sleeves = SMODS.Atlas {
